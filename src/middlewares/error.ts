@@ -1,0 +1,47 @@
+import type { NextFunction, Request, Response } from "express";
+import { HttpError } from "../utils/http-error";
+
+const fail = (res: Response, status: number, message: string): void => {
+  res.status(status).json({ status: false, message });
+};
+
+export const notFound = (req: Request, res: Response): void => {
+  fail(res, 404, `Endpoint ${req.method} ${req.originalUrl} tidak ditemukan`);
+};
+
+export const errorHandler = (
+  err: unknown,
+  _req: Request,
+  res: Response,
+  _next: NextFunction,
+): void => {
+  if (err instanceof HttpError) {
+    fail(res, err.status, err.message);
+    return;
+  }
+
+  if (typeof err === "object" && err !== null) {
+    if ("code" in err) {
+      if (err.code === "P2002") {
+        fail(res, 409, "Data sudah ada (nilai unik bentrok)");
+        return;
+      }
+      if (err.code === "P2025") {
+        fail(res, 404, "Data tidak ditemukan");
+        return;
+      }
+      if (err.code === "P2003") {
+        fail(res, 400, "Relasi data tidak valid");
+        return;
+      }
+    }
+
+    if ("status" in err && typeof err.status === "number" && err.status < 500) {
+      fail(res, err.status, "Request tidak valid (cek format JSON)");
+      return;
+    }
+  }
+
+  console.error(err);
+  fail(res, 500, "Terjadi kesalahan pada server");
+};
