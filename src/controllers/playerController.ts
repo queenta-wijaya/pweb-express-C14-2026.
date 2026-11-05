@@ -153,3 +153,94 @@ export const addMatchResult = async (req: Request, res: Response): Promise<void>
     bp: updatedPlayer.bp
   });
 };
+
+export const buyHero = async (req: Request, res: Response): Promise<void> => {
+  const playerId = parseId(req.params.player_id);
+  const { heroId, currency } = req.body;
+
+  const numHeroId =
+    typeof heroId === "number"
+      ? heroId
+      : typeof heroId === "string" && heroId.trim() !== ""
+        ? Number(heroId)
+        : NaN;
+
+  // 1. heroId kosong, atau currency bukan BP/DIAMOND -> 400
+  if (
+    !Number.isInteger(numHeroId) ||
+    numHeroId <= 0 ||
+    (currency !== "BP" && currency !== "DIAMOND")
+  ) {
+    throw new HttpError(400, "heroId dan currency (BP atau DIAMOND) harus diisi");
+  }
+
+  // 2. Player tidak ditemukan -> 404
+  const player = await prisma.player.findUnique({ where: { id: playerId } });
+  if (!player) {
+    throw new HttpError(404, "Player tidak ditemukan");
+  }
+
+  // 3. Hero tidak ditemukan -> 404
+  const hero = await prisma.hero.findUnique({ where: { id: numHeroId } });
+  if (!hero) {
+    throw new HttpError(404, "Hero tidak ditemukan");
+  }
+
+  // 4. Harga hero untuk currency tersebut kosong -> 400
+  const price = currency === "BP" ? hero.priceBP : hero.priceDiamond;
+  if (price === null || price === undefined) {
+    throw new HttpError(400, `Hero ${hero.name} tidak bisa dibeli dengan ${currency}`);
+  }
+
+  // 5. Player sudah memiliki hero tersebut -> 409
+  const alreadyOwned = await prisma.playerHero.findUnique({
+    where: {
+      playerId_heroId: {
+        playerId,
+        heroId: numHeroId,
+      },
+    },
+  });
+  if (alreadyOwned) {
+    throw new HttpError(409, `Player sudah memiliki hero ${hero.name}`);
+  }
+
+  // 6. Saldo player kurang dari harga hero -> 400
+  const balance = currency === "BP" ? player.bp : player.diamond;
+  if (balance < price) {
+    throw new HttpError(400, `Saldo ${currency} tidak mencukupi untuk membeli hero ini`);
+  }
+
+  // Simpan dengan transaction: decrement saldo dan buat PlayerHero
+  const [updatedPlayer, playerHero] = await prisma.$transaction([
+    prisma.player.update({
+      where: { id: playerId },
+      data: {
+        ...(currency === "BP"
+          ? { bp: { decrement: price } }
+          : { diamond: { decrement: price } }),
+      },
+    }),
+    prisma.playerHero.create({
+      data: {
+        playerId,
+        heroId: numHeroId,
+        currency,
+        pricePaid: price,
+      },
+    }),
+  ]);
+
+  sendSuccess(res, 201, "Hero berhasil dibeli", {
+    hero: {
+      id: hero.id,
+      name: hero.name,
+    },
+    currency: playerHero.currency,
+    pricePaid: playerHero.pricePaid,
+    balance: {
+      bp: updatedPlayer.bp,
+      diamond: updatedPlayer.diamond,
+    },
+  });
+};

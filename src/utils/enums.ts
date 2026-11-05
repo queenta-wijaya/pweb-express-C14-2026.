@@ -1,4 +1,4 @@
-import { Lane, Rarity, Role } from "../generated/prisma/client";
+import { Currency, Lane, Rarity, Role } from "../generated/prisma/client";
 
 export const isRole = (value: unknown): value is Role =>
   typeof value === "string" && Object.values(Role).some((role) => role === value);
@@ -9,3 +9,7 @@ export const isLane = (value: unknown): value is Lane =>
 export const isRarity = (value: unknown): value is Rarity =>
   typeof value === "string" &&
   Object.values(Rarity).some((rarity) => rarity === value);
+
+export const isCurrency = (value: unknown): value is Currency =>
+  typeof value === "string" &&
+  Object.values(Currency).some((currency) => currency === value);
