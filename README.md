@@ -34,6 +34,15 @@ Seed mengosongkan tabel `PlayerHero`, `Player`, `Skin`, dan `Hero`, lalu memasuk
 - `GET /api/skins?page=1&limit=10&heroId=18&rarity=GRAND`
 - `GET /api/skins/:skin_id`
 
+## Endpoint Anggota 2
+
+- `POST /api/players`
+- `GET /api/players/:player_id`
+- `PATCH /api/players/:player_id`
+- `DELETE /api/players/:player_id`
+- `POST /api/players/:player_id/topup` 
+- `POST /api/players/:player_id/matches` 
+
 Pagination menggunakan default `page=1` dan `limit=10`, dengan batas `limit` 100. Response daftar menyertakan `metadata` dengan `currentPage`, `limit`, `totalItems`, dan `totalPages`.
 
 Jalankan `npm run typecheck` untuk memeriksa tipe TypeScript. Prisma Client harus dibuat ulang dengan `npm run db:generate` setelah clone atau perubahan schema.
